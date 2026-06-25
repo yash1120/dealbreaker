@@ -12,6 +12,8 @@ pinned: false
 
 The 60-second background check on a Sydney property listing — flood, bushfire, commute, and too-cheap/scam flags, on a map — *before* you waste a Saturday inspecting it.
 
+**🔗 [Code on GitHub](https://github.com/yash1120/dealbreaker) · [Live demo — HF Spaces](https://huggingface.co/spaces/yash1120/dealbreaker)**
+
 The "anti-listing" tool: it surfaces the things Domain/REA are structurally motivated to hide.
 
 ## How it works
