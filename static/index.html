@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DealBreaker — Sydney property background check</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    :root {
+      --bg: #0f1115; --card: #181b22; --muted: #8a93a6; --text: #e8ecf3; --line: #262b35;
+      --green: #2ecc71; --amber: #f5a623; --red: #ff5b5b; --grey: #6b7280; --accent: #5b8cff;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: radial-gradient(1200px 600px at 50% -10%, #1a2030 0%, var(--bg) 55%);
+      color: var(--text); min-height: 100vh;
+    }
+    .wrap { max-width: 720px; margin: 0 auto; padding: 48px 20px 80px; }
+    .logo { font-weight: 800; letter-spacing: -0.5px; font-size: 30px; }
+    .logo span { color: var(--accent); }
+    .tag { color: var(--muted); margin: 6px 0 24px; font-size: 15px; }
+    form { display: flex; gap: 10px; }
+    input, select {
+      padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line);
+      background: #11141a; color: var(--text); font-size: 16px; outline: none;
+    }
+    #addr { flex: 1; }
+    input:focus, select:focus { border-color: var(--accent); }
+    button {
+      padding: 0 22px; border: 0; border-radius: 12px; background: var(--accent);
+      color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; height: 50px;
+    }
+    button.ghost { background: #1d2230; color: var(--text); border: 1px solid var(--line); }
+    button:disabled { opacity: .55; cursor: default; }
+    .hint { color: var(--muted); font-size: 13px; margin-top: 10px; }
+    .hint b { color: var(--text); font-weight: 600; cursor: pointer; }
+    details.more { margin-top: 14px; }
+    details.more summary { color: var(--accent); cursor: pointer; font-size: 14px; user-select: none; }
+    details.more summary b { color: var(--text); }
+    .more-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+    .more-grid #work { grid-column: 1 / -1; }
+    .more-grid input, .more-grid select { width: 100%; font-size: 15px; padding: 12px 14px; }
+
+    .maptools {
+      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+      margin-top: 22px; padding: 12px 14px; border: 1px solid var(--line);
+      border-radius: 12px; background: #14171e; font-size: 14px;
+    }
+    .maptools .ttl { font-weight: 700; }
+    .maptools select { padding: 9px 12px; font-size: 14px; }
+    .maptools button { height: 40px; padding: 0 16px; font-size: 14px; }
+    .maptools .count { color: var(--muted); font-size: 13px; }
+
+    #mapwrap { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; display: none; }
+    #map { height: 380px; width: 100%; background: #0c0e12; }
+    .leaflet-container { background: #0c0e12; font: inherit; }
+    .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1c212b; color: var(--text); }
+    .legend { padding: 10px 16px; font-size: 12.5px; color: var(--muted);
+      display: flex; gap: 14px; flex-wrap: wrap; align-items: center; border-top: 1px solid var(--line); }
+    .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+    #rentlegend { display: none; }
+
+    .card { margin-top: 16px; background: var(--card); border: 1px solid var(--line);
+      border-radius: 16px; overflow: hidden; display: none; }
+    .banner { padding: 18px 20px; font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 10px; }
+    .banner.green { background: rgba(46,204,113,.13); color: var(--green); }
+    .banner.amber { background: rgba(245,166,35,.14); color: var(--amber); }
+    .banner.red   { background: rgba(255,91,91,.14);  color: var(--red); }
+    .addr { padding: 4px 20px 16px; color: var(--muted); font-size: 13px; }
+    .check { padding: 16px 20px; border-top: 1px solid var(--line); display: flex; gap: 14px; }
+    .dot { width: 12px; height: 12px; border-radius: 50%; margin-top: 5px; flex: none; }
+    .dot.clear { background: var(--green); } .dot.warn { background: var(--amber); }
+    .dot.alert { background: var(--red); } .dot.unknown { background: var(--grey); }
+    .check .body { flex: 1; }
+    .check .row { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+    .check .ttl { font-weight: 700; font-size: 15px; }
+    .check .lbl { font-size: 13px; color: var(--muted); text-align: right; }
+    .check .det { color: var(--muted); font-size: 13.5px; margin-top: 4px; line-height: 1.5; }
+    .err { display:none; margin-top: 18px; padding: 16px; border-radius: 12px;
+      background: rgba(255,91,91,.12); color: var(--red); font-size: 14px; }
+    .foot { color: var(--muted); font-size: 12px; margin-top: 28px; line-height: 1.6; }
+    .spin { display:inline-block; width:15px; height:15px; border:2px solid #fff;
+      border-top-color: transparent; border-radius:50%; animation: s .7s linear infinite; }
+    @keyframes s { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="logo">Deal<span>Breaker</span></div>
+    <div class="tag">The 60-second background check on a Sydney listing — before you waste a Saturday.</div>
+
+    <form id="f">
+      <input id="addr" placeholder="e.g. 14 Coronation St, Springwood NSW" autocomplete="off" />
+      <button id="go" type="submit">Check</button>
+    </form>
+
+    <div class="hint">
+      Try:
+      <b data-a="Springwood NSW 2777">Springwood</b> ·
+      <b data-a="Pitt Town Road, Pitt Town NSW 2756">Pitt Town</b> ·
+      <b data-a="Sydney Opera House, Sydney NSW">Sydney CBD</b>
+    </div>
+
+    <details class="more">
+      <summary>+ <b>Check rent fairness</b> &amp; commute (optional)</summary>
+      <div class="more-grid">
+        <input id="work" placeholder="Your work address — for the commute check" autocomplete="off" />
+        <input id="rent" type="number" min="1" placeholder="Listed weekly rent $ — for rent fairness" />
+        <select id="beds">
+          <option value="">Bedrooms…</option>
+          <option value="1">1 bedroom</option>
+          <option value="2">2 bedrooms</option>
+          <option value="3">3 bedrooms</option>
+          <option value="4">4+ bedrooms</option>
+        </select>
+        <select id="dwelling">
+          <option value="any">Any dwelling type</option>
+          <option value="unit">Unit / Flat</option>
+          <option value="house">House</option>
+          <option value="townhouse">Townhouse</option>
+        </select>
+      </div>
+    </details>
+
+    <div class="maptools">
+      <span class="ttl">🏘️ Median rent map</span>
+      <select id="mapbeds">
+        <option value="1">1 bed</option>
+        <option value="2" selected>2 bed</option>
+        <option value="3">3 bed</option>
+        <option value="4">4+ bed</option>
+      </select>
+      <button id="showrent" class="ghost" type="button">Show medians</button>
+      <span class="count" id="mapcount"></span>
+    </div>
+
+    <div class="err" id="err"></div>
+
+    <div id="mapwrap">
+      <div id="map"></div>
+      <div class="legend" id="rentlegend">
+        <span>Median weekly rent:</span>
+        <span><span class="sw" style="background:#2ecc71"></span>&lt;$500</span>
+        <span><span class="sw" style="background:#9acd32"></span>$500–649</span>
+        <span><span class="sw" style="background:#f5a623"></span>$650–799</span>
+        <span><span class="sw" style="background:#e8743b"></span>$800–999</span>
+        <span><span class="sw" style="background:#b30000"></span>$1000+</span>
+      </div>
+      <div class="legend">
+        <span><span class="sw" style="background:#e8743b"></span>Bushfire-prone land</span>
+        <span><span class="sw" style="background:#4aa3df"></span>Flood planning area</span>
+        <span style="margin-left:auto">Hazard overlay: NSW Planning Portal</span>
+      </div>
+    </div>
+
+    <div class="card" id="card">
+      <div class="banner" id="banner"></div>
+      <div class="addr" id="addr-out"></div>
+      <div id="checks"></div>
+    </div>
+
+    <div class="foot">
+      Data: NSW Planning Portal Bush Fire Prone Land &amp; EPI Flood Planning; rent medians from NSW DCJ
+      Rent &amp; Sales Report; commute from Transport for NSW; postcode centroids © Matthew Proctor (CC BY 4.0);
+      mapped via OpenStreetMap/CARTO. The map shows median <b>rents</b>, not sale prices. Flood mapping is
+      incomplete across NSW — a clear result is not a guarantee. Always confirm with the s10.7 planning
+      certificate. Not financial, legal, or planning advice.
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/esri-leaflet@3.0.12/dist/esri-leaflet.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const f = $('f'), addr = $('addr'), go = $('go'), card = $('card');
+    const banner = $('banner'), addrOut = $('addr-out'), checks = $('checks'), err = $('err');
+
+    const VERDICT_COLORS = { green: '#2ecc71', amber: '#f5a623', red: '#ff5b5b' };
+    const HAZARD_URL = 'https://mapprod3.environment.nsw.gov.au/arcgis/rest/services/ePlanning/Planning_Portal_Hazard/MapServer';
+    const SYD = [-33.86, 151.0];
+    let map, marker, hazardLayer, rentLayer, rentOn = false;
+
+    function rentColor(m) {
+      return m >= 1000 ? '#b30000' : m >= 800 ? '#e8743b' : m >= 650 ? '#f5a623'
+           : m >= 500 ? '#9acd32' : '#2ecc71';
+    }
+
+    function ensureMap() {
+      $('mapwrap').style.display = 'block';
+      if (!map) {
+        map = L.map('map', { zoomControl: true, scrollWheelZoom: false, preferCanvas: true }).setView(SYD, 10);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+          { maxZoom: 19, attribution: '© OpenStreetMap, © CARTO' }).addTo(map);
+        rentLayer = L.layerGroup().addTo(map);
+        window.dbMap = map;  // handle for debugging / scripted control
+      }
+      setTimeout(() => map.invalidateSize(), 60);
+    }
+
+    function ensureHazard() {
+      if (!hazardLayer) hazardLayer = L.esri.dynamicMapLayer({ url: HAZARD_URL, layers: [230, 229], opacity: 0.5 });
+      if (!map.hasLayer(hazardLayer)) hazardLayer.addTo(map);
+    }
+
+    // ---- median rent map layer ----
+    $('showrent').addEventListener('click', async () => {
+      if (rentOn) { rentLayer.clearLayers(); rentOn = false; $('rentlegend').style.display = 'none';
+        $('mapcount').textContent = ''; $('showrent').textContent = 'Show medians'; return; }
+      ensureMap();
+      const beds = $('mapbeds').value;
+      $('showrent').disabled = true; $('showrent').textContent = 'Loading…';
+      try {
+        const res = await fetch('/api/rent-map?beds=' + beds);
+        const d = await res.json();
+        const pts = d.points || [];
+        rentLayer.clearLayers();
+        const bounds = [];
+        for (const p of pts) {
+          L.circleMarker([p.lat, p.lon], { radius: 7, color: '#0b0d11', weight: 1, fillColor: rentColor(p.median), fillOpacity: 0.85 })
+            .bindPopup('<b>Postcode ' + p.postcode + '</b><br>' + beds + '-bed median: <b>$' + p.median + '/wk</b>'
+              + (p.q1 && p.q3 ? '<br><span style="color:#8a93a6">range $' + p.q1 + '–$' + p.q3 + ' · ' + p.bonds + ' bonds</span>' : ''))
+            .addTo(rentLayer);
+          bounds.push([p.lat, p.lon]);
+        }
+        if (bounds.length) map.fitBounds(bounds, { padding: [25, 25] });
+        rentOn = true;
+        $('rentlegend').style.display = 'flex';
+        $('mapcount').textContent = pts.length + ' postcodes · ' + beds + '-bed';
+        $('showrent').textContent = 'Hide medians';
+      } catch (e) { $('mapcount').textContent = 'Could not load rent map.'; }
+      finally { $('showrent').disabled = false; }
+    });
+
+    // ---- property check ----
+    document.querySelectorAll('.hint b').forEach(b =>
+      b.addEventListener('click', () => { addr.value = b.dataset.a; f.requestSubmit(); }));
+
+    f.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = addr.value.trim();
+      if (q.length < 3) return;
+      const params = new URLSearchParams({ address: q });
+      const work = $('work').value.trim(), rent = $('rent').value.trim(),
+            beds = $('beds').value, dwelling = $('dwelling').value;
+      if (work) params.set('work', work);
+      if (rent) params.set('rent', rent);
+      if (beds) params.set('beds', beds);
+      if (dwelling && dwelling !== 'any') params.set('dwelling', dwelling);
+
+      err.style.display = 'none'; card.style.display = 'none';
+      go.disabled = true; go.innerHTML = '<span class="spin"></span>';
+      try {
+        const res = await fetch('/api/check?' + params.toString());
+        if (!res.ok) { const j = await res.json().catch(() => ({})); throw new Error(j.detail || 'Something went wrong.'); }
+        render(await res.json());
+      } catch (ex) { err.textContent = ex.message; err.style.display = 'block'; }
+      finally { go.disabled = false; go.textContent = 'Check'; }
+    });
+
+    function render(d) {
+      const v = d.verdict;
+      banner.className = 'banner ' + v.level;
+      banner.textContent = (v.level === 'green' ? '✓ ' : v.level === 'amber' ? '⚠ ' : '⛔ ') + v.headline;
+      addrOut.textContent = d.address;
+      checks.innerHTML = '';
+      for (const c of v.checks) {
+        const el = document.createElement('div');
+        el.className = 'check';
+        el.innerHTML = '<div class="dot ' + c.status + '"></div>'
+          + '<div class="body"><div class="row"><span class="ttl">' + c.title + '</span>'
+          + '<span class="lbl">' + c.label + '</span></div>'
+          + '<div class="det">' + c.detail + '</div></div>';
+        checks.appendChild(el);
+      }
+      card.style.display = 'block';
+
+      // map: pin + hazard overlay at the property
+      ensureMap();
+      ensureHazard();
+      const ll = [d.lat, d.lon], color = VERDICT_COLORS[v.level] || '#5b8cff';
+      map.setView(ll, 16);
+      if (marker) marker.setLatLng(ll).setStyle({ fillColor: color });
+      else marker = L.circleMarker(ll, { radius: 9, color: '#fff', weight: 2, fillColor: color, fillOpacity: 1 }).addTo(map);
+      marker.bringToFront();
+      setTimeout(() => map.invalidateSize(), 60);
+    }
+  </script>
+</body>
+</html>

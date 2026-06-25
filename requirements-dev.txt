@@ -1,0 +1,5 @@
+# Dev-time only: needed to (re)build data/rent.db via data/ingest_rent.py.
+# Runtime (the server) does NOT need these — see requirements.txt.
+-r requirements.txt
+pandas
+openpyxl
